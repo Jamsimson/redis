@@ -1,0 +1,22 @@
+Docker: redis-stack-api
+// app_id chat
+{
+        "app_id": "001",
+        "SOS":"false",
+        "message":{
+            "senderID":"852",
+            "receiverID":"147",
+            "message":"Test send message round two from Minisong✨✨"
+        }
+}
+
+// app_id phuketWatcher
+{
+        "app_id": "002",
+        "SOS":"true",
+        "message":{
+            "senderID":"12563",
+            "receiverID":"7895",
+            "location":"62.994604-14.576629"
+        }
+}
