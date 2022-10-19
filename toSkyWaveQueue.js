@@ -1,8 +1,10 @@
-(async () => {
+async function start(data) {
   const redis = require("redis");
   const { SchemaFieldTypes } = redis;
   const { createClient } = redis;
-  const redisService = require("../services/redis.services");
+  const chatQueueKeyName = "etneca:chat:outGoing";
+  const chatQueueLastTamp = "system:outGoing";
+  const redisClient = require("./services/redis.client");
   class Queue {
     // Array is used to implement a Queue
     constructor() {
@@ -39,97 +41,92 @@
     }
   }
   var queue = new Queue();
-  var last_tamps = "";
-  var val = "";
-  var cnt = 0;
+  // var last_tamps = redisClient.getLastTamps()
+  // var val = redisClient.getVal()
+  // var cnt = redisClient.getCount()
 
   const client = createClient();
   client.on("error", (err) => console.log("Redis Client Error", err));
   await client.connect();
 
-  const chatQueueKeyName = "etneca:chat:outGoing";
-  const chatQueueLastTamp = "system:outGoing";
-
-  redisService.createRedisJSONIndex(
-    "timestamp",
-    SchemaFieldTypes.NUMERIC,
-    chatQueueKeyName
-  );
-  redisService.createRedisJSONIndex(
+  createRedisJSONIndex("timestamp", SchemaFieldTypes.NUMERIC, chatQueueKeyName);
+  createRedisJSONIndex(
     "last_timestamp",
     SchemaFieldTypes.NUMERIC,
     chatQueueLastTamp
   );
-  redisService.createRedisJSONIndex(
-    "sender",
-    SchemaFieldTypes.TAG,
-    chatQueueKeyName
-  );
-
-  const intervalID = setInterval(op, 10000);
-
-  // async function createRedisJSONIndex(name, type, prefix) {
-  //     try {
-  //         const fieldName = `$.${name}`
-  //         var indexFiled = {}
-
-  //         if (type === SchemaFieldTypes.TEXT) {
-  //             indexFiled[fieldName] = {
-  //                 type: type,
-  //             }
-  //         }
-  //         else {
-  //             indexFiled[fieldName] = {
-  //                 type: type,
-  //                 AS: name
-  //             }
-  //         }
-  //         await client.ft.create(`idx:${name}`, indexFiled, {
-  //             ON: 'JSON',
-  //             PREFIX: prefix
-  //         });
-  //     } catch (e) {
-  //         if (e.message === 'Index already exists') {
-  //             console.log(`Index exists already, skipped creation.${name}`);
-  //         } else {
-  //             console.error(e);
-  //             process.exit(1);
-  //         }
-  //     }
-
-  // }
-})();
-
-async function op(data) {
-  var data_str = `${data.timestamp},${data.senderId},${data.receiverId},${data.mobileId},${data.message}\r\n`;
+  createRedisJSONIndex("sender", SchemaFieldTypes.TAG, chatQueueKeyName);
+  redisClient.setCount(this.cnt);
+  var data_str = `${data.timestamp},${data.app_id},${data.SOS},${data.message}\r\n`;
   queue.enqueue(data_str);
-  await client.json.set(`${chatQueueKeyName}:${timestamp}`, "$", data);
+  await client.json.set(`${chatQueueKeyName}:${data.timestamp}`, "$", data);
 
-  if (last_tamps == "") {
+  console.log(`last timetm: `, redisClient.getLastTamps());
+  console.log(`val: `, redisClient.getVal());
+
+  if (this.last_tamps == 0) {
     var q = queue.last().split(",");
-    last_tamps = parseInt(q[0]);
+    // last_tamps = parseInt(q[0]);
+    redisClient.setLastTamps(Number(q[0]));
+    // last_tamps = redisClient.getLastTamps
   } else {
-    val = data.timestamp;
+    // val = data.timestamp;
+    redisClient.setVal(data.timestamp);
+    // val = redisClient.getVal()
   }
+  // console.log(` number q`,Number(q[0]));
+  // console.log(`data.tamps`,data.timestamp);
+
   // }
 
-  if (last_tamps < val) {
-    if (cnt > 1) {
-      last_tamps = last_tamps + 1;
+  if (redisClient.getLastTamps() < redisClient.getVal()) {
+    if (redisClient.getCount() > 1) {
+      redisClient.setLastTamps(this.last_tamps + 1);
+      // this.last_tamps = redisClient.getLastTamps()
     }
-    const tamp = { timestamp: last_tamps };
+    const tamp = { timestamp: redisClient.getLastTamps() };
     await client.json.set(`${chatQueueLastTamp}`, "$", tamp);
     const results = await client.ft.search(
       "idx:timestamp",
-      `@timestamp:[${last_tamps} inf]`
+      `@timestamp:[${redisClient.getLastTamps()} inf]`
     );
     console.log("last_tamps < val : ", results);
-    last_tamps = val;
+    redisClient.setLastTamps(redisClient.getVal());
+  } else {
+    console.log(`No go into if😵‍💫`);
   }
   queue.clear_queue();
-  return cnt;
-}
+  return redisClient.getCount();
 
+  async function createRedisJSONIndex(name, type, prefix) {
+    try {
+      const fieldName = `$.${name}`;
+      var indexFiled = {};
+
+      if (type === SchemaFieldTypes.TEXT) {
+        indexFiled[fieldName] = {
+          type: type,
+        };
+      } else {
+        indexFiled[fieldName] = {
+          type: type,
+          AS: name,
+        };
+      }
+      await client.ft.create(`idx:${name}`, indexFiled, {
+        ON: "JSON",
+        PREFIX: prefix,
+      });
+    } catch (e) {
+      if (e.message === "Index already exists") {
+        console.log(`Index exists already, skipped creation.${name}`);
+      } else {
+        console.error(e);
+        process.exit(1);
+      }
+    }
+  }
+}
 module.exports = {
-  op,
+  start,
 };

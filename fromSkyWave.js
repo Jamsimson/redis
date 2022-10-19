@@ -1,22 +1,21 @@
 // import { createClient, SchemaFieldTypes } from 'redis';
-createClient, SchemaFieldTypes = require('redis')
+const {createClient, SchemaFieldTypes} = require('redis')
 // import { SerialPort } from 'serialport'
-SerialPort = require('serialport')
+const {SerialPort} = require('serialport')
 // import { ReadlineParser } from '@serialport/parser-readline'
-ReadlineParser = require('@serialport/parser-readline')
-const redisService = require('../services/redis.services')
+const {ReadlineParser} = require('@serialport/parser-readline')
 
-(async () => {
+async function start(){
 
     const client = createClient();
     client.on('error', (err) => console.log('Redis Client Error', err));
     await client.connect();
     const chatQueueKeyName = "etneca:chat:inComing";
 
-    redisService.createRedisJSONIndex('timestamp', SchemaFieldTypes.NUMERIC, chatQueueKeyName)
-    redisService.createRedisJSONIndex('sender', SchemaFieldTypes.TAG, chatQueueKeyName)
+    createRedisJSONIndex('timestamp', SchemaFieldTypes.NUMERIC, chatQueueKeyName)
+    createRedisJSONIndex('sender', SchemaFieldTypes.TAG, chatQueueKeyName)
 
-    var port = new SerialPort({ path: 'COM17', baudRate: 9600 })
+    var port = new SerialPort({ path: 'COM5', baudRate: 9600 })
     const parser = port.pipe(new ReadlineParser({ delimiter: '\r\n' }))
 
     parser.on('data', function (data) {
@@ -56,42 +55,42 @@ const redisService = require('../services/redis.services')
     }
 
     // function creat redis JSON index
-    // async function createRedisJSONIndex(name, type, prefix) {
-    //     try {
-    //         const fieldName = `$.${name}`
-    //         var indexFiled = {}
+    async function createRedisJSONIndex(name, type, prefix) {
+        try {
+            const fieldName = `$.${name}`
+            var indexFiled = {}
 
-    //         if (type === SchemaFieldTypes.TEXT) {
-    //             indexFiled[fieldName] = {
-    //                 type: type,
-    //             }
-    //             // console.log("already sender text ")
-    //         }
-    //         else {
-    //             indexFiled[fieldName] = {
-    //                 type: type,
-    //                 AS: name
-    //             }
-    //         }
+            if (type === SchemaFieldTypes.TEXT) {
+                indexFiled[fieldName] = {
+                    type: type,
+                }
+                // console.log("already sender text ")
+            }
+            else {
+                indexFiled[fieldName] = {
+                    type: type,
+                    AS: name
+                }
+            }
 
-    //         // console.log("🚀 ~ createRedisJSONIndex ~ indexFiled", JSON.stringify(indexFiled))
+            // console.log("🚀 ~ createRedisJSONIndex ~ indexFiled", JSON.stringify(indexFiled))
 
-    //         await client.ft.create(`idx:${name}`, indexFiled, {
-    //             ON: 'JSON',
-    //             PREFIX: prefix
-    //         });
-    //     } catch (e) {
-    //         if (e.message === 'Index already exists') {
-    //             console.log(`Index exists already, skipped creation.${name}`);
-    //         } else {
-    //             // Something went wrong, perhaps RediSearch isn't installed...
-    //             console.error(e);
-    //             process.exit(1);
-    //         }
-    //     }
+            await client.ft.create(`idx:${name}`, indexFiled, {
+                ON: 'JSON',
+                PREFIX: prefix
+            });
+        } catch (e) {
+            if (e.message === 'Index already exists') {
+                console.log(`Index exists already, skipped creation.${name}`);
+            } else {
+                // Something went wrong, perhaps RediSearch isn't installed...
+                console.error(e);
+                process.exit(1);
+            }
+        }
 
-    // }
+    }
 
-})();
+}
 
-
+start()

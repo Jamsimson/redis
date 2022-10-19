@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 const sevice = require('../services/sgw.services')
 
+
 /* GET home page. */
 router.get('/', function (req, res, next) {
   res.render('index', {
@@ -25,5 +26,6 @@ router.get('/stop', function (req, res, next) {
     status: 'stop'
   });
 });
+
 
 module.exports = router;
